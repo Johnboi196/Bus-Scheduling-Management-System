@@ -1,0 +1,10 @@
+DEBUG - 2026-05-25 16:37:27 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-05-25 16:37:28 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+INFO - 2026-05-25 16:37:36 --> CSRF token verified.
+WARNING - 2026-05-25 16:37:36 --> Web login failed: supervisor/ADM001
+DEBUG - 2026-05-25 16:37:36 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-05-25 16:37:36 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+INFO - 2026-05-25 16:37:40 --> CSRF token verified.
+DEBUG - 2026-05-25 16:37:40 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+INFO - 2026-05-25 16:37:40 --> Web login success: admin/ADM001
+DEBUG - 2026-05-25 16:37:40 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
