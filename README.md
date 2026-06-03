@@ -1,4 +1,4 @@
-# Smart Bus System
+# Bus Scheduling Management System
 
 ## Project Overview
 
