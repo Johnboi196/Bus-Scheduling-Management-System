@@ -1,0 +1,42 @@
+name: smart_bus_device
+description: In-bus tablet app for Smart Bus Scheduling System.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+
+
+
+  flutter:
+    sdk: flutter
+
+  # HTTP calls to the CodeIgniter API
+  http: ^1.2.0
+
+  # Local SQLite cache for offline mode
+  sqflite: ^2.3.0
+  path: ^1.9.0
+
+  # Detect online/offline transitions to trigger background sync
+  connectivity_plus: ^7.1.1
+
+  # Read this device's MAC address (Hardware Identification)
+  network_info_plus: ^8.1.0
+
+  permission_handler: ^12.0.1
+
+  # Persist sessionToken / cached config
+  shared_preferences: ^2.2.0
+
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
