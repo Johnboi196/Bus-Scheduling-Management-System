@@ -98,3 +98,89 @@ After placing the project in `htdocs` and importing the database:
   smart_bus
   ```
 * The provided SQL file must be imported into the `smart_bus` database before starting the system.
+
+## Optional Notes / Quick Setup Fixes
+
+These are quick configuration notes for development setup and common fixes.
+
+---
+
+### Apache (XAMPP) Configuration
+
+To run CodeIgniter 4 properly:
+
+* Edit `apache\conf\httpd.conf`
+* Set DocumentRoot:
+
+  ```
+  DocumentRoot "C:/xampp/htdocs"
+  <Directory "C:/xampp/htdocs">
+  ```
+* Ensure CI4 public folder is accessible:
+
+  ```
+  C:/xampp/htdocs/ci4/public
+  ```
+
+---
+
+### CodeIgniter 4 (.env Configuration)
+
+Update the environment file:
+
+```
+app.baseURL = 'http://localhost/ci4/public/'
+```
+
+If routing through Apache root:
+
+```
+app.baseURL = 'http://localhost/'
+```
+
+Optional redirect fix (if using custom routing):
+
+```
+header('Location: '.$uri.'/dashboard/');
+```
+
+---
+
+### Flutter API Configuration
+
+Set your backend base URL in Flutter:
+
+* Android Emulator:
+
+```
+http://10.0.2.2/api
+```
+
+* Localhost (web testing):
+
+```
+http://localhost/api
+```
+
+---
+
+### PHP Configuration (XAMPP)
+
+Enable required extensions:
+
+* Open `php.ini`
+* Enable:
+
+```
+extension=intl
+```
+
+Restart Apache after changes.
+
+---
+
+### Summary Tip
+
+* Flutter → `lib/` contains main logic
+* CI4 → must be inside `htdocs/ci4/`
+* Backend runs through `http://localhost/ci4/public/`
