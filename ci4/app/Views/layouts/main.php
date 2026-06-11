@@ -13,10 +13,10 @@ $supLinks = [
     ['url' => 'supervisor/dashboard',     'icon' => 'speedometer2',   'label' => 'Dashboard'],
     ['url' => 'supervisor/schedules',     'icon' => 'calendar3',      'label' => 'Schedules'],
     ['url' => 'supervisor/unassigned',    'icon' => 'inbox',          'label' => 'Unassigned Trips'],
-    ['url' => 'supervisor/overtime',      'icon' => 'clock-history',  'label' => 'Overtime'],
-    ['url' => 'supervisor/leave',         'icon' => 'envelope',       'label' => 'Leave'],
-    ['url' => 'supervisor/cancellations', 'icon' => 'x-circle',       'label' => 'Cancellations'],
-    ['url' => 'supervisor/volunteers',    'icon' => 'hand-thumbs-up', 'label' => 'Volunteers'],
+    ['url' => 'supervisor/overtime',      'icon' => 'clock-history',  'label' => 'Overtime Requests'],
+    ['url' => 'supervisor/leave',         'icon' => 'envelope',       'label' => 'Leave Requests'],
+    ['url' => 'supervisor/cancellations', 'icon' => 'x-circle',       'label' => 'Cancellations Requests'],
+    ['url' => 'supervisor/volunteers',    'icon' => 'hand-thumbs-up', 'label' => 'Volunteers Requests'],
     ['url' => 'supervisor/fleet',         'icon' => 'truck',          'label' => 'Live Fleet'],
 ];
 $adminLinks = [

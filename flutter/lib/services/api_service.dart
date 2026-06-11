@@ -12,8 +12,8 @@ class ApiService {
   /// or "127.0.0.1" — those resolve to the tablet itself. Use the
   /// laptop/server's LAN IP. For the Android emulator, use 10.0.2.2.
   // static const String baseUrl = 'http://10.0.2.2/ci4/public/api';
-     static const String baseUrl = 'http://10.0.2.2/api';
-  //static const String baseUrl = 'http://192.168.68.102/api';
+  //  static const String baseUrl = 'http://10.0.2.2/api';
+  static const String baseUrl = 'http://192.168.68.102/api';
 
   static const Duration _timeout = Duration(seconds: 10);
 

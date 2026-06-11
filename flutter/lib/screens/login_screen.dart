@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // If no recents yet (first launch ever), prefill the demo account
     // so testers can try the app without typing.
     if (_recents.isEmpty) {
-      _email.text = 'ali@bus.local';
+      _email.text = 'nazir@maraliner.com';
       _pass.text  = 'password123';
     }
   }
@@ -117,7 +117,19 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Driver Login')),
+appBar: AppBar(
+   title: Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      const Text('Driver Login'),
+      Image.asset(
+        'assets/images/logo.png',
+        height: 28,
+        fit: BoxFit.contain,
+                 ),
+              ],
+            ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

@@ -73,7 +73,7 @@
                         <i class="bi bi-person-plus"></i> Add a driver
                     </a>
                     <a href="<?= site_url('admin/reports') ?>"     class="btn btn-outline-primary text-start">
-                        <i class="bi bi-graph-up"></i> View weekly report
+                        <i class="bi bi-graph-up"></i> View report
                     </a>
                 </div>
             </div>

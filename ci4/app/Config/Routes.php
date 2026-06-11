@@ -77,7 +77,8 @@ $routes->group('admin', ['filter' => 'role:admin', 'namespace' => 'App\Controlle
     $routes->get('routes/delete/(:num)','AdminController::routeDelete/$1');
 
     // Reports
-    $routes->get('reports', 'AdminController::reports');
+    //$routes->get('reports', 'AdminController::reports');
+    $routes->get('reports', 'AdminController::reports', ['filter' => 'role:admin']);
 });
 
 // =====================================================================

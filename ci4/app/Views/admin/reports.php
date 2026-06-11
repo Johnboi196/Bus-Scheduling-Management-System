@@ -1,116 +1,235 @@
+<style>
+/* PRINT STYLES — hide sidebar/topbar when printing */
+@media print {
+    body { background: #fff !important; }
+    .sidebar, .topbar, .no-print, .btn, .pagination,
+    nav, header, footer { display: none !important; }
+    .main { margin-left: 0 !important; padding: 0 !important; }
+    .card { box-shadow: none !important; border: 1px solid #ccc !important; }
+    .table { font-size: 11px !important; }
+    .print-header { display: block !important; }
+    @page { margin: 1.5cm; size: A4 landscape; }
+}
+.print-header { display: none; }
+
+.score-badge {
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 0.4rem 0.7rem;
+    border-radius: 4px;
+    display: inline-block;
+    min-width: 70px;
+    text-align: center;
+}
+.score-excellent { background: #d1e7dd; color: #0a3622; }
+.score-good      { background: #cfe2ff; color: #052c65; }
+.score-fair      { background: #fff3cd; color: #664d03; }
+.score-poor      { background: #f8d7da; color: #58151c; }
+
+.metric-cell { font-size: 0.85rem; color: #555; }
+.metric-bar {
+    display: inline-block; width: 50px; height: 6px;
+    background: #e0e0e0; border-radius: 3px;
+    overflow: hidden; vertical-align: middle; margin-right: 6px;
+}
+.metric-bar > span {
+    display: block; height: 100%; background: #6B0E2F;
+}
+</style>
+
+<!-- Print-only header -->
+<div class="print-header" style="margin-bottom: 20px;">
+    <h2 style="margin: 0;">DriverHub — Driver Performance Report</h2>
+    <p style="margin: 4px 0; color: #666;">
+        Period: <?= esc($start_date) ?> to <?= esc($end_date) ?>
+        (<?= esc($date_range_days) ?> days)
+        | Generated: <?= date('Y-m-d H:i') ?>
+        | Total drivers: <?= esc($total_drivers) ?>
+    </p>
+    <hr>
+</div>
+
+<!-- Screen header -->
+<div class="d-flex justify-content-between align-items-center mb-4 no-print">
+    <div>
+        <h3 class="mb-1">Driver Performance Reports</h3>
+        <p class="text-muted mb-0">Multi-metric evaluation across the selected date range</p>
+    </div>
+    <button class="btn btn-primary" onclick="window.print()">
+        <i class="bi bi-printer"></i> Print Report
+    </button>
+</div>
+
 <!-- Date range filter -->
-<div class="card mb-3">
+<div class="card mb-4 no-print">
     <div class="card-body">
-        <form method="get" class="row g-2 align-items-end mb-0">
-            <div class="col-md-3">
-                <label class="form-label small">From</label>
-                <input type="date" name="from" class="form-control form-control-sm"
-                       value="<?= esc($from) ?>">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Start date</label>
+                <input type="date" name="start_date" class="form-control"
+                       value="<?= esc($start_date) ?>">
             </div>
-            <div class="col-md-3">
-                <label class="form-label small">To</label>
-                <input type="date" name="to" class="form-control form-control-sm"
-                       value="<?= esc($to) ?>">
+            <div class="col-md-4">
+                <label class="form-label">End date</label>
+                <input type="date" name="end_date" class="form-control"
+                       value="<?= esc($end_date) ?>">
             </div>
-            <div class="col-md-3">
-                <button class="btn btn-sm btn-primary">
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary me-2">
                     <i class="bi bi-funnel"></i> Apply Filter
                 </button>
-                <button type="button" onclick="window.print()" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-printer"></i> Print
-                </button>
+                <a href="<?= site_url('admin/reports') ?>" class="btn btn-outline-secondary">
+                    Reset
+                </a>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Trip completion -->
-<div class="card mb-3">
-    <div class="card-header bg-white">
-        <strong>Trip Completion by Day</strong>
-        <small class="text-muted ms-2"><?= esc($from) ?> to <?= esc($to) ?></small>
+<!-- Summary cards -->
+<div class="row mb-4 no-print">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="h2 mb-0" style="color: #6B0E2F;"><?= esc($total_drivers) ?></div>
+                <small class="text-muted">Total drivers</small>
+            </div>
+        </div>
     </div>
-    <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Date</th><th>Total</th><th>Completed</th>
-                    <th>In Progress</th><th>Pending</th><th>Cancelled</th><th>Completion %</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php if (empty($dailyTrips)): ?>
-                <tr><td colspan="7" class="text-center text-muted py-3">No data in range.</td></tr>
-            <?php else: foreach ($dailyTrips as $d): ?>
-                <?php $pct = $d['total'] > 0 ? round(($d['completed']/$d['total'])*100) : 0; ?>
-                <tr>
-                    <td><?= esc($d['schedule_date']) ?></td>
-                    <td><?= $d['total'] ?></td>
-                    <td class="text-success"><?= $d['completed'] ?></td>
-                    <td class="text-warning"><?= $d['in_progress'] ?></td>
-                    <td class="text-muted"><?= $d['pending'] ?></td>
-                    <td class="text-danger"><?= $d['cancelled'] ?></td>
-                    <td>
-                        <div class="progress" style="height:18px;">
-                            <div class="progress-bar bg-success" style="width:<?= $pct ?>%">
-                                <?= $pct ?>%
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-            <?php endforeach; endif; ?>
-            </tbody>
-        </table>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="h2 mb-0" style="color: #6B0E2F;"><?= esc($date_range_days) ?></div>
+                <small class="text-muted">Days in range</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="h2 mb-0" style="color: #C9942D;">
+                    <?= !empty($reports)
+                        ? round(array_sum(array_column($reports, 'overall_score')) / count($reports), 1)
+                        : 0 ?>%
+                </div>
+                <small class="text-muted">Average performance</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="h2 mb-0" style="color: #C9942D;">
+                    <?= array_sum(array_column($reports, 'total_trips')) ?>
+                </div>
+                <small class="text-muted">Total trips</small>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="row g-3">
-    <!-- Overtime by driver -->
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header bg-white"><strong>Overtime by Driver</strong></div>
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr><th>Driver</th><th>Requests</th><th>Total Minutes</th><th>Approved</th></tr>
-                    </thead>
-                    <tbody>
-                    <?php if (empty($overtimeSummary)): ?>
-                        <tr><td colspan="4" class="text-center text-muted py-3">No overtime in range.</td></tr>
-                    <?php else: foreach ($overtimeSummary as $o): ?>
+<!-- Performance table -->
+<div class="card">
+    <div class="card-header" style="background: #6B0E2F; color: #fff;">
+        <strong>Driver Performance Evaluation</strong>
+        <small class="float-end">All metrics weighted equally (16.67% each)</small>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead style="background: #f8f9fa;">
+                    <tr>
+                        <th>#</th>
+                        <th>Driver</th>
+                        <th class="text-center">Trips</th>
+                        <th class="text-center">On Time</th>
+                        <th class="text-center">Cancels</th>
+                        <th class="text-center">Volunteers</th>
+                        <th class="text-center">Leave Days</th>
+                        <th class="text-center">Service</th>
+                        <th class="text-center">Punctuality</th>
+                        <th class="text-center">Availability</th>
+                        <th class="text-center">Reliability</th>
+                        <th class="text-center">Overall</th>
+                        <th class="text-center">Rating</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($reports)): ?>
                         <tr>
-                            <td><?= esc($o['driver_name']) ?></td>
-                            <td><?= (int)$o['total_requests'] ?></td>
-                            <td><strong><?= (int)$o['total_minutes'] ?> min</strong>
-                                <small class="text-muted">(<?= round($o['total_minutes']/60, 1) ?>h)</small>
+                            <td colspan="13" class="text-center py-4 text-muted">
+                                No drivers found.
                             </td>
-                            <td><?= (int)$o['approved_count'] ?></td>
                         </tr>
-                    <?php endforeach; endif; ?>
-                    </tbody>
-                </table>
-            </div>
+                    <?php else: ?>
+                        <?php foreach ($reports as $i => $r): ?>
+                        <tr>
+                            <td><?= $i + 1 ?></td>
+                            <td>
+                                <strong><?= esc($r['name']) ?></strong><br>
+                                <small class="text-muted"><?= esc($r['email']) ?></small>
+                            </td>
+                            <td class="text-center"><?= $r['total_trips'] ?></td>
+                            <td class="text-center">
+                                <span class="text-success"><?= $r['on_time_trips'] ?></span>
+                                / <?= $r['total_trips'] ?>
+                            </td>
+                            <td class="text-center"><?= $r['cancel_trips'] ?></td>
+                            <td class="text-center">
+                                <span class="text-primary"><?= $r['volunteer_trips'] ?></span>
+                            </td>
+                            <td class="text-center"><?= $r['leave_days'] ?></td>
+                            <td class="text-center"><?= $r['months_service'] ?> mo</td>
+                            <td class="text-center metric-cell">
+                                <span class="metric-bar">
+                                    <span style="width: <?= $r['punctuality_pct'] ?>%"></span>
+                                </span>
+                                <?= $r['punctuality_pct'] ?>%
+                            </td>
+                            <td class="text-center metric-cell">
+                                <span class="metric-bar">
+                                    <span style="width: <?= $r['availability_pct'] ?>%"></span>
+                                </span>
+                                <?= $r['availability_pct'] ?>%
+                            </td>
+                            <td class="text-center metric-cell">
+                                <span class="metric-bar">
+                                    <span style="width: <?= $r['cancellation_pct'] ?>%"></span>
+                                </span>
+                                <?= $r['cancellation_pct'] ?>%
+                            </td>
+                            <td class="text-center">
+                                <span class="score-badge score-<?= $r['rating_class'] === 'success' ? 'excellent'
+                                    : ($r['rating_class'] === 'primary' ? 'good'
+                                    : ($r['rating_class'] === 'warning' ? 'fair' : 'poor')) ?>">
+                                    <?= $r['overall_score'] ?>%
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-<?= $r['rating_class'] ?>">
+                                    <?= esc($r['rating']) ?>
+                                </span>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
-    <!-- Leave summary -->
-    <div class="col-md-4">
-        <div class="card h-100">
-            <div class="card-header bg-white"><strong>Leave Applications</strong></div>
-            <div class="card-body">
-                <?php if (empty($leaveSummary)): ?>
-                    <p class="text-muted text-center py-3 mb-0">None in range.</p>
-                <?php else: foreach ($leaveSummary as $l): ?>
-                    <?php
-                    $c = ['Pending'=>'warning','Approved'=>'success','Rejected'=>'danger'];
-                    $cls = $c[$l['status']] ?? 'secondary';
-                    ?>
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge bg-<?= $cls ?>"><?= esc($l['status']) ?></span>
-                        <strong class="fs-4"><?= (int)$l['cnt'] ?></strong>
-                    </div>
-                <?php endforeach; endif; ?>
-            </div>
-        </div>
+<!-- Methodology footer -->
+<div class="card mt-3 no-print">
+    <div class="card-body small text-muted">
+        <strong>Performance scoring methodology:</strong>
+        Each driver's overall score is the average of six metrics, weighted equally (16.67% each):
+        <strong>Punctuality</strong> (% of trips started and ended within 5 minutes of expected times),
+        <strong>Availability</strong> (inverse of approved leave days),
+        <strong>Cancellation history</strong> (inverse of approved cancellation rate),
+        <strong>Volunteer contributions</strong> (approved volunteer pickups per week),
+        <strong>Total trips completed</strong> (trips per week productivity), and
+        <strong>Length of service</strong> (months tenured, capped at 24 months).
+        Rating bands: Excellent (90%+), Good (75-89%), Fair (60-74%), Needs improvement (&lt;60%).
     </div>
 </div>
