@@ -257,7 +257,7 @@ class AdminController extends Controller
     // ------------------------------------------------------------------
     // REPORTS
     // ------------------------------------------------------------------
-    public function reports()
+   public function reports()
 {
     $db = \Config\Database::connect();
     
@@ -278,7 +278,55 @@ class AdminController extends Controller
     foreach ($drivers as $driver) {
         $driverId = (int)$driver['driver_id'];
         
-        // METRIC 1: Punctuality — % of completed trips within 5 min of expected
+        // FIRST: Check if this driver has ANY trip activity in the date range.
+        // "Activity" = an assigned schedule (any status) OR an approved cancellation.
+        $hasSchedules = $db->table('schedules')
+            ->where('driver_id', $driverId)
+            ->where('schedule_date >=', $startDate)
+            ->where('schedule_date <=', $endDate)
+            ->countAllResults();
+        
+        $hasCancels = $db->query("
+            SELECT COUNT(*) as cnt
+            FROM cancel_requests cr
+            JOIN schedules s ON cr.schedule_id = s.schedule_id
+            WHERE cr.driver_id = ?
+            AND cr.status = 'Approved'
+            AND s.schedule_date BETWEEN ? AND ?
+        ", [$driverId, $startDate, $endDate])->getRowArray();
+        
+        $hasActivity = ($hasSchedules > 0) || ((int)$hasCancels['cnt'] > 0);
+        
+        $totalDaysInRange = (strtotime($endDate) - strtotime($startDate)) / 86400 + 1;
+        $weeksInRange = max(1, $totalDaysInRange / 7);
+        $monthsService = max(0, (strtotime($endDate) - strtotime($driver['created_at'])) / 2592000);
+        
+        // If no activity at all, skip the calculations and return zeros.
+        if (!$hasActivity) {
+            $reports[] = [
+                'driver_id' => $driverId,
+                'name' => $driver['full_name'],
+                'email' => $driver['email'],
+                'total_trips' => 0,
+                'on_time_trips' => 0,
+                'cancel_trips' => 0,
+                'volunteer_trips' => 0,
+                'leave_days' => 0,
+                'months_service' => round($monthsService, 1),
+                'punctuality_pct' => 0,
+                'availability_pct' => 0,
+                'cancellation_pct' => 0,
+                'volunteer_pct' => 0,
+                'total_trips_pct' => 0,
+                'service_pct' => 0,
+                'overall_score' => 0,
+                'rating' => 'No Data',
+                'rating_class' => 'secondary',
+            ];
+            continue;
+        }
+        
+        // METRIC 1: Punctuality
         $tripQuery = $db->query("
             SELECT 
                 COUNT(*) as total_trips,
@@ -299,7 +347,7 @@ class AdminController extends Controller
         $onTimeTrips = (int)($tripQuery['on_time_trips'] ?? 0);
         $punctualityPct = $totalTrips > 0 ? ($onTimeTrips / $totalTrips) * 100 : 0;
         
-        // METRIC 2: Availability — inverse of approved leave days in range
+        // METRIC 2: Availability
         $leaveDays = $db->query("
             SELECT COALESCE(SUM(DATEDIFF(end_date, start_date) + 1), 0) as days
             FROM leave_applications
@@ -309,11 +357,10 @@ class AdminController extends Controller
             AND end_date >= ?
         ", [$driverId, $endDate, $startDate])->getRowArray();
         
-        $totalDaysInRange = (strtotime($endDate) - strtotime($startDate)) / 86400 + 1;
         $leaveDaysCount = (int)$leaveDays['days'];
         $availabilityPct = max(0, (1 - ($leaveDaysCount / $totalDaysInRange)) * 100);
         
-        // METRIC 3: Cancellation rate — inverse (fewer approved cancels = higher score)
+        // METRIC 3: Cancellation history
         $cancelCount = $db->query("
             SELECT COUNT(*) as cnt
             FROM cancel_requests cr
@@ -329,7 +376,7 @@ class AdminController extends Controller
             ? (1 - ($cancelTrips / $totalScheduledTrips)) * 100 
             : 100;
         
-        // METRIC 4: Volunteer contributions — count of approved volunteer pickups
+        // METRIC 4: Volunteer contributions
         $volunteerCount = $db->query("
             SELECT COUNT(*) as cnt
             FROM volunteer_requests vr
@@ -340,22 +387,20 @@ class AdminController extends Controller
         ", [$driverId, $startDate, $endDate])->getRowArray();
         
         $volunteerTrips = (int)$volunteerCount['cnt'];
-        $weeksInRange = max(1, $totalDaysInRange / 7);
         $volunteerPct = min(100, ($volunteerTrips / $weeksInRange) * 100);
         
-        // METRIC 5: Total trips completed — productivity indicator
+        // METRIC 5: Total trips completed
         $tripsPerWeek = $totalTrips / $weeksInRange;
         $totalTripsPct = min(100, ($tripsPerWeek / 5) * 100);
         
-        // METRIC 6: Length of service — months since registration, capped at 24
-        $monthsService = max(0, (strtotime($endDate) - strtotime($driver['created_at'])) / 2592000);
+        // METRIC 6: Length of service
         $serviceP = min(100, ($monthsService / 24) * 100);
         
-        // OVERALL: equal weights = 16.67% each
+        // OVERALL: equal weights
         $overallScore = ($punctualityPct + $availabilityPct + $cancellationPct 
                        + $volunteerPct + $totalTripsPct + $serviceP) / 6;
         
-        // Determine rating band
+        // Rating band
         $rating = 'Needs improvement';
         $ratingClass = 'danger';
         if ($overallScore >= 90) { $rating = 'Excellent'; $ratingClass = 'success'; }
@@ -387,19 +432,17 @@ class AdminController extends Controller
     // Sort by overall score descending
     usort($reports, fn($a, $b) => $b['overall_score'] <=> $a['overall_score']);
     
-    $data = [
-    'reports' => $reports,
-    'start_date' => $startDate,
-    'end_date' => $endDate,
-    'total_drivers' => count($reports),
-    'date_range_days' => (int)$totalDaysInRange,
-];
-
-return view('layouts/main', [
-    'title'    => 'Performance Reports',
-    'role'     => 'admin',
-    'userName' => session('user_name') ?? 'Admin',
-    'content'  => view('admin/reports', $data),
-]);
+    return view('layouts/main', [
+        'title'    => 'Performance Reports',
+        'role'     => 'admin',
+        'userName' => session('user_name') ?? 'Admin',
+        'content'  => view('admin/reports', [
+            'reports' => $reports,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'total_drivers' => count($reports),
+            'date_range_days' => (int)$totalDaysInRange,
+        ]),
+    ]);
 }
 }

@@ -25,6 +25,25 @@ class SupervisorController extends Controller
         return view('layouts/main', $data);
     }
 
+    /**
+     * Check whether a driver has an APPROVED leave that covers a given date.
+     * Returns true if the driver is unavailable, false otherwise.
+     */
+    private function driverOnLeave(int $driverId, string $date): bool
+    {
+        if ($driverId <= 0 || empty($date)) {
+            return false;
+        }
+        $db = \Config\Database::connect();
+        $count = $db->table('leave_applications')
+            ->where('driver_id', $driverId)
+            ->where('status', 'Approved')
+            ->where('start_date <=', $date)
+            ->where('end_date >=', $date)
+            ->countAllResults();
+        return $count > 0;
+    }
+
     // ------------------------------------------------------------------
     // DASHBOARD — KPI cards
     // ------------------------------------------------------------------
@@ -122,6 +141,16 @@ class SupervisorController extends Controller
                 ->with('flash', ['type'=>'danger','msg'=>'All fields are required.']);
         }
 
+        // Block the assignment if the chosen driver is on approved leave that day.
+        if ($this->driverOnLeave($data['driver_id'], $data['schedule_date'])) {
+            $name = $db->table('drivers')
+                ->where('driver_id', $data['driver_id'])
+                ->get()->getRowArray()['full_name'] ?? 'This driver';
+            return redirect()->back()->withInput()
+                ->with('flash', ['type'=>'danger',
+                    'msg'=>"{$name} is on approved leave on {$data['schedule_date']}. Pick another driver or change the date."]);
+        }
+
         $db->table('schedules')->insert($data);
 
         return redirect()->to('/supervisor/schedules')
@@ -146,11 +175,25 @@ class SupervisorController extends Controller
     public function scheduleUpdate($id)
     {
         $db = \Config\Database::connect();
+
+        $driverId     = (int)$this->request->getPost('driver_id');
+        $scheduleDate = $this->request->getPost('schedule_date');
+
+        // Block the assignment if the chosen driver is on approved leave that day.
+        if ($driverId > 0 && $this->driverOnLeave($driverId, $scheduleDate)) {
+            $name = $db->table('drivers')
+                ->where('driver_id', $driverId)
+                ->get()->getRowArray()['full_name'] ?? 'This driver';
+            return redirect()->back()->withInput()
+                ->with('flash', ['type'=>'danger',
+                    'msg'=>"{$name} is on approved leave on {$scheduleDate}. Pick another driver or change the date."]);
+        }
+
         $db->table('schedules')->where('schedule_id',$id)->update([
-            'driver_id'      => (int)$this->request->getPost('driver_id'),
+            'driver_id'      => $driverId,
             'bus_id'         => (int)$this->request->getPost('bus_id'),
             'route_id'       => (int)$this->request->getPost('route_id'),
-            'schedule_date'  => $this->request->getPost('schedule_date'),
+            'schedule_date'  => $scheduleDate,
             'expected_start' => $this->request->getPost('expected_start'),
             'expected_end'   => $this->request->getPost('expected_end'),
         ]);
@@ -229,14 +272,57 @@ class SupervisorController extends Controller
         }
 
         $db = \Config\Database::connect();
+
+        // Get the leave details first (we need start/end dates and driver_id).
+        $leave = $db->table('leave_applications')
+            ->where('leave_id', $id)
+            ->get()->getRowArray();
+
+        if (!$leave) {
+            return redirect()->to('/supervisor/leave');
+        }
+
+        // Mark the leave with the supervisor's decision.
         $db->table('leave_applications')->where('leave_id',$id)->update([
             'status'        => $decision,
             'supervisor_id' => session('user_id'),
             'reviewed_at'   => date('Y-m-d H:i:s'),
         ]);
 
+        $releasedCount = 0;
+
+        // If approved: auto-release this driver's FUTURE trips during the leave period.
+        // Rules:
+        //   - Only trips from today onwards (past trips remain attributed to the driver).
+        //   - Only trips not yet started (actual_start IS NULL) — in-progress work is preserved.
+        //   - Released trips become unassigned and re-enter the volunteer pool.
+        if ($decision === 'Approved') {
+            $today      = date('Y-m-d');
+            $rangeStart = max($leave['start_date'], $today);
+            $rangeEnd   = $leave['end_date'];
+
+            // Only run if the leave still has future dates.
+            if ($rangeStart <= $rangeEnd) {
+                $db->table('schedules')
+                    ->where('driver_id', $leave['driver_id'])
+                    ->where('schedule_date >=', $rangeStart)
+                    ->where('schedule_date <=', $rangeEnd)
+                    ->where('actual_start IS NULL', null, false)
+                    ->update([
+                        'driver_id'  => null,
+                        'job_status' => 'Pending',
+                    ]);
+                $releasedCount = $db->affectedRows();
+            }
+        }
+
+        $flashMsg = "Leave {$decision}.";
+        if ($releasedCount > 0) {
+            $flashMsg .= " {$releasedCount} affected trip(s) released to volunteer pool.";
+        }
+
         return redirect()->to('/supervisor/leave')
-            ->with('flash',['type'=>'success','msg'=>"Leave {$decision}."]);
+            ->with('flash',['type'=>'success','msg'=>$flashMsg]);
     }
 
     // ------------------------------------------------------------------
@@ -441,6 +527,27 @@ class SupervisorController extends Controller
         }
 
         $db = \Config\Database::connect();
+
+        // Look up the trip's date so we can check leave coverage.
+        $sched = $db->table('schedules')
+            ->where('schedule_id', $scheduleId)
+            ->get()->getRowArray();
+
+        if (!$sched) {
+            return redirect()->to('supervisor/unassigned')
+                ->with('flash', ['type'=>'danger', 'msg'=>'Schedule not found.']);
+        }
+
+        // Block the assignment if the driver is on approved leave that day.
+        if ($this->driverOnLeave($driverId, $sched['schedule_date'])) {
+            $name = $db->table('drivers')
+                ->where('driver_id', $driverId)
+                ->get()->getRowArray()['full_name'] ?? 'This driver';
+            return redirect()->to('supervisor/unassigned')
+                ->with('flash', ['type'=>'danger',
+                    'msg'=>"{$name} is on approved leave on {$sched['schedule_date']}. Pick another driver."]);
+        }
+
         $db->table('schedules')
             ->where('schedule_id', $scheduleId)
             ->where('driver_id IS NULL', null, false)

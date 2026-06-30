@@ -25,6 +25,7 @@
 .score-good      { background: #cfe2ff; color: #052c65; }
 .score-fair      { background: #fff3cd; color: #664d03; }
 .score-poor      { background: #f8d7da; color: #58151c; }
+.score-nodata { background: #e9ecef; color: #6c757d; }
 
 .metric-cell { font-size: 0.85rem; color: #555; }
 .metric-bar {
@@ -201,7 +202,8 @@
                             <td class="text-center">
                                 <span class="score-badge score-<?= $r['rating_class'] === 'success' ? 'excellent'
                                     : ($r['rating_class'] === 'primary' ? 'good'
-                                    : ($r['rating_class'] === 'warning' ? 'fair' : 'poor')) ?>">
+                                    : ($r['rating_class'] === 'warning' ? 'fair'
+                                    : ($r['rating_class'] === 'secondary' ? 'nodata' : 'poor'))) ?>">
                                     <?= $r['overall_score'] ?>%
                                 </span>
                             </td>
