@@ -169,33 +169,21 @@ class DatabaseHelper {
 
   /// Reconcile the local cache with a fresh list from the server.
   ///
-  /// SAFETY GUARDS:
-  ///   - If server returns 0 trips → DO NOTHING. Almost always a query/date
-  ///     mismatch, not an actual mass-deletion. Refuse to wipe the cache.
-  ///   - Unsynced rows (is_synced = 0) are NEVER touched.
-  ///   - Started/completed rows (actual_start IS NOT NULL) are NEVER touched.
+  /// CONTRACT: `serverList` is the AUTHORITATIVE current set of trips
+  /// assigned to `driverId` for "today" (whatever date window the API
+  /// returned). Anything in the local cache for this driver that isn't
+  /// in `serverList` is stale and must go — UNLESS it's protected:
   ///
-  /// Rules for the rest:
-  ///   - Server trip is NEW (not in cache) → add it.
-  ///   - Server trip matches a synced+not-started cached row → overwrite
-  ///     from server (catches supervisor edits to times/route/etc.)
-  ///   - Cached row not in server list, synced and not started → remove
-  ///     (supervisor deleted a Pending trip the driver hasn't touched).
+  ///   - Unsynced rows (is_synced = 0)         → never touched
+  ///   - Started/completed rows (actual_start) → never touched
   ///
   /// Returns the count of changes made.
   Future<int> reconcileFromServer(int driverId, List<Schedule> serverList) async {
-    // SAFETY: refuse to reconcile against an empty server list.
-    // An empty result almost always means the server query missed the date
-    // (timezone, stale test data, etc.) rather than a real mass-delete.
-    if (serverList.isEmpty) return 0;
-
     final db = await database;
     int changes = 0;
 
-    // Map server trips by ID for quick lookup.
     final serverById = {for (final s in serverList) s.scheduleId: s};
 
-    // Load existing cache for this driver.
     final cached = await db.query(
       'schedules',
       where: 'driver_id = ?',
@@ -208,7 +196,6 @@ class DatabaseHelper {
     for (final s in serverList) {
       final existing = cached.where((r) => r['schedule_id'] == s.scheduleId);
       if (existing.isEmpty) {
-        // Brand new trip from server — add it.
         final row = s.toDbMap()..['driver_id'] = driverId;
         batch.insert('schedules', row,
             conflictAlgorithm: ConflictAlgorithm.replace);
@@ -217,7 +204,6 @@ class DatabaseHelper {
         final row = existing.first;
         final isSynced = (row['is_synced'] as int) == 1;
         final hasStart = row['actual_start'] != null;
-        // Only overwrite synced + not-started rows.
         if (isSynced && !hasStart) {
           batch.update(
             'schedules',
@@ -230,16 +216,12 @@ class DatabaseHelper {
       }
     }
 
-    // 2. Remove cached rows the server didn't return — but ONLY rows that
-    // share a date with the server's results. If the server returned trips
-    // for May 14 and we have a cached trip for May 13, that's a different
-    // query, not a deletion. Leave it alone.
-    final serverDates = serverList.map((s) => s.scheduleDate).toSet();
+    // 2. Remove cached rows the server didn't return.
+    //    Server's response IS the source of truth for this driver's
+    //    current assignments — including the "you have zero trips" case.
     for (final row in cached) {
-      final id   = row['schedule_id'] as int;
-      final date = row['schedule_date'] as String;
-      if (serverById.containsKey(id))   continue;   // still there, keep
-      if (!serverDates.contains(date))  continue;   // out of query window, keep
+      final id = row['schedule_id'] as int;
+      if (serverById.containsKey(id)) continue; // still assigned, keep
 
       final isSynced = (row['is_synced'] as int) == 1;
       final hasStart = row['actual_start'] != null;

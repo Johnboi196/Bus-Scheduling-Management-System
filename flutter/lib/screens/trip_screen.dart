@@ -95,7 +95,7 @@ class _TripScreenState extends State<TripScreen> {
       if (online) {
         setState(() => _statusBar = 'Fetching schedule for $driverName…');
         final remote = await _api.fetchDailyScheduleByMac(mac, driverId: driverId);
-        await _db.cacheItinerary(driverId, remote);
+        await _db.reconcileFromServer(driverId, remote);
         setState(() => _statusBar =
             'Itinerary loaded (${remote.length} trip${remote.length==1?'':'s'})');
       } else {
@@ -243,13 +243,21 @@ class _TripScreenState extends State<TripScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _schedules.isEmpty
-                    ? const Center(child: Text('No trips assigned to you today.'))
-                    : ListView.separated(
-                        itemCount: _schedules.length,
-                        separatorBuilder: (_, __) => const Divider(height: 0),
-                        itemBuilder: (_, i) => _buildRow(_schedules[i]),
-                      ),
+                : RefreshIndicator(
+              onRefresh: () => _sync.trySync(reason: 'pull-to-refresh'),
+              child: _schedules.isEmpty
+                  ? ListView(   // must be scrollable for RefreshIndicator to work
+                children: const [
+                  SizedBox(height: 200),
+                  Center(child: Text('No trips assigned to you today.')),
+                ],
+              )
+                  : ListView.separated(
+                itemCount: _schedules.length,
+                separatorBuilder: (_, __) => const Divider(height: 0),
+                itemBuilder: (_, i) => _buildRow(_schedules[i]),
+              ),
+            ),
           ),
         ],
       ),
