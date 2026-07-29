@@ -1,5 +1,4 @@
 <style>
-/* PRINT STYLES — hide sidebar/topbar when printing */
 @media print {
     body { background: #fff !important; }
     .sidebar, .topbar, .no-print, .btn, .pagination,
@@ -13,19 +12,14 @@
 .print-header { display: none; }
 
 .score-badge {
-    font-size: 1.1rem;
-    font-weight: 600;
-    padding: 0.4rem 0.7rem;
-    border-radius: 4px;
-    display: inline-block;
-    min-width: 70px;
-    text-align: center;
+    font-size: 1.1rem; font-weight: 600; padding: 0.4rem 0.7rem;
+    border-radius: 4px; display: inline-block; min-width: 70px; text-align: center;
 }
 .score-excellent { background: #d1e7dd; color: #0a3622; }
 .score-good      { background: #cfe2ff; color: #052c65; }
 .score-fair      { background: #fff3cd; color: #664d03; }
 .score-poor      { background: #f8d7da; color: #58151c; }
-.score-nodata { background: #e9ecef; color: #6c757d; }
+.score-nodata    { background: #e9ecef; color: #6c757d; }
 
 .metric-cell { font-size: 0.85rem; color: #555; }
 .metric-bar {
@@ -33,14 +27,12 @@
     background: #e0e0e0; border-radius: 3px;
     overflow: hidden; vertical-align: middle; margin-right: 6px;
 }
-.metric-bar > span {
-    display: block; height: 100%; background: #6B0E2F;
-}
+.metric-bar > span { display: block; height: 100%; background: #6B0E2F; }
 </style>
 
 <!-- Print-only header -->
 <div class="print-header" style="margin-bottom: 20px;">
-    <h2 style="margin: 0;">DriverHub — Driver Performance Report</h2>
+    <h2 style="margin: 0;">NextStop — Driver Performance Report</h2>
     <p style="margin: 4px 0; color: #666;">
         Period: <?= esc($start_date) ?> to <?= esc($end_date) ?>
         (<?= esc($date_range_days) ?> days)
@@ -133,7 +125,7 @@
 <div class="card">
     <div class="card-header" style="background: #6B0E2F; color: #fff;">
         <strong>Driver Performance Evaluation</strong>
-        <small class="float-end">All metrics weighted equally (16.67% each)</small>
+        <small class="float-end">Metrics weighted equally | Cancellations shown for reference only</small>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -142,7 +134,7 @@
                     <tr>
                         <th>#</th>
                         <th>Driver</th>
-                        <th class="text-center">Trips</th>
+                        <th class="text-center">Completed</th>
                         <th class="text-center">On Time</th>
                         <th class="text-center">Cancels</th>
                         <th class="text-center">Volunteers</th>
@@ -150,7 +142,8 @@
                         <th class="text-center">Service</th>
                         <th class="text-center">Punctuality</th>
                         <th class="text-center">Availability</th>
-                        <th class="text-center">Reliability</th>
+                        <th class="text-center">Completion</th>
+                        <th class="text-center">Volunteer</th>
                         <th class="text-center">Overall</th>
                         <th class="text-center">Rating</th>
                     </tr>
@@ -158,7 +151,7 @@
                 <tbody>
                     <?php if (empty($reports)): ?>
                         <tr>
-                            <td colspan="13" class="text-center py-4 text-muted">
+                            <td colspan="14" class="text-center py-4 text-muted">
                                 No drivers found.
                             </td>
                         </tr>
@@ -170,7 +163,9 @@
                                 <strong><?= esc($r['name']) ?></strong><br>
                                 <small class="text-muted"><?= esc($r['email']) ?></small>
                             </td>
-                            <td class="text-center"><?= $r['total_trips'] ?></td>
+                            <td class="text-center">
+                                <?= $r['total_trips'] ?> / <?= $r['total_assigned'] ?>
+                            </td>
                             <td class="text-center">
                                 <span class="text-success"><?= $r['on_time_trips'] ?></span>
                                 / <?= $r['total_trips'] ?>
@@ -195,9 +190,19 @@
                             </td>
                             <td class="text-center metric-cell">
                                 <span class="metric-bar">
-                                    <span style="width: <?= $r['cancellation_pct'] ?>%"></span>
+                                    <span style="width: <?= $r['total_trips_pct'] ?>%"></span>
                                 </span>
-                                <?= $r['cancellation_pct'] ?>%
+                                <?= $r['total_trips_pct'] ?>%
+                            </td>
+                            <td class="text-center metric-cell">
+                                <?php if ($r['volunteer_pct'] !== null): ?>
+                                    <span class="metric-bar">
+                                        <span style="width: <?= $r['volunteer_pct'] ?>%"></span>
+                                    </span>
+                                    <?= $r['volunteer_pct'] ?>%
+                                <?php else: ?>
+                                    <span class="text-muted">N/A</span>
+                                <?php endif; ?>
                             </td>
                             <td class="text-center">
                                 <span class="score-badge score-<?= $r['rating_class'] === 'success' ? 'excellent'
@@ -225,13 +230,14 @@
 <div class="card mt-3 no-print">
     <div class="card-body small text-muted">
         <strong>Performance scoring methodology:</strong>
-        Each driver's overall score is the average of six metrics, weighted equally (16.67% each):
+        Each driver's overall score is the average of all applicable metrics, weighted equally:
         <strong>Punctuality</strong> (% of trips started and ended within 5 minutes of expected times),
         <strong>Availability</strong> (inverse of approved leave days),
-        <strong>Cancellation history</strong> (inverse of approved cancellation rate),
-        <strong>Volunteer contributions</strong> (approved volunteer pickups per week),
-        <strong>Total trips completed</strong> (trips per week productivity), and
-        <strong>Length of service</strong> (months tenured, capped at 24 months).
+        <strong>Trip completion rate</strong> (completed trips as a percentage of assigned trips),
+        <strong>Length of service</strong> (days active within the selected evaluation period), and
+        <strong>Volunteer contributions</strong> (only included when unassigned trips existed in the period).
+        Cancellation counts are displayed for reference but excluded from the overall score.
         Rating bands: Excellent (90%+), Good (75-89%), Fair (60-74%), Needs improvement (&lt;60%).
+        Drivers with no trip activity in the selected range are shown as "No Data".
     </div>
 </div>
